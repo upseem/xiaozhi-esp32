@@ -24,11 +24,83 @@
 #include <esp_lcd_touch_cst9217.h>
 #include <esp_lvgl_port.h>
 #include <lvgl.h>
-#include "src/misc/lv_text_private.h"
 
+#include <cstdint>
 #include <string>
 
 #define TAG "WaveshareEsp32s3TouchAMOLED1inch75"
+
+namespace {
+
+// Decode one UTF-8 code point from s[*i]; advances *i. Returns 0 on truncation/invalid.
+uint32_t Utf8Next(const char* s, size_t len, size_t* i) {
+    if (*i >= len) {
+        return 0;
+    }
+    const uint8_t c0 = static_cast<uint8_t>(s[*i]);
+    if (c0 < 0x80) {
+        ++(*i);
+        return c0;
+    }
+    if ((c0 & 0xE0) == 0xC0) {
+        if (*i + 1 >= len) {
+            *i = len;
+            return 0;
+        }
+        const uint8_t c1 = static_cast<uint8_t>(s[*i + 1]);
+        *i += 2;
+        return (static_cast<uint32_t>(c0 & 0x1F) << 6) | (c1 & 0x3F);
+    }
+    if ((c0 & 0xF0) == 0xE0) {
+        if (*i + 2 >= len) {
+            *i = len;
+            return 0;
+        }
+        const uint8_t c1 = static_cast<uint8_t>(s[*i + 1]);
+        const uint8_t c2 = static_cast<uint8_t>(s[*i + 2]);
+        *i += 3;
+        return (static_cast<uint32_t>(c0 & 0x0F) << 12) | (static_cast<uint32_t>(c1 & 0x3F) << 6) |
+               (c2 & 0x3F);
+    }
+    if ((c0 & 0xF8) == 0xF0) {
+        if (*i + 3 >= len) {
+            *i = len;
+            return 0;
+        }
+        const uint8_t c1 = static_cast<uint8_t>(s[*i + 1]);
+        const uint8_t c2 = static_cast<uint8_t>(s[*i + 2]);
+        const uint8_t c3 = static_cast<uint8_t>(s[*i + 3]);
+        *i += 4;
+        return (static_cast<uint32_t>(c0 & 0x07) << 18) | (static_cast<uint32_t>(c1 & 0x3F) << 12) |
+               (static_cast<uint32_t>(c2 & 0x3F) << 6) | (c3 & 0x3F);
+    }
+    ++(*i);  // skip invalid lead byte
+    return 0;
+}
+
+int MeasureTextWidth(const lv_font_t* font, const char* utf8, size_t byte_len) {
+    if (font == nullptr || utf8 == nullptr || byte_len == 0) {
+        return 0;
+    }
+    int width = 0;
+    size_t i = 0;
+    while (i < byte_len) {
+        const size_t before = i;
+        const uint32_t letter = Utf8Next(utf8, byte_len, &i);
+        if (i == before) {
+            break;
+        }
+        if (letter == 0) {
+            continue;
+        }
+        size_t peek = i;
+        const uint32_t letter_next = (peek < byte_len) ? Utf8Next(utf8, byte_len, &peek) : 0;
+        width += lv_font_get_glyph_width(font, letter, letter_next);
+    }
+    return width;
+}
+
+}  // namespace
 
 class Pmic : public Axp2101 {
 public:
@@ -85,6 +157,8 @@ static const co5300_lcd_init_cmd_t vendor_specific_init[] = {
 // 在waveshare_amoled_1_75类之前添加新的显示类
 class CustomLcdDisplay : public SpiLcdDisplay {
 public:
+    static constexpr int kSubtitleBarY = 190;
+
     static void rounder_event_cb(lv_event_t* e) {
         lv_area_t* area = (lv_area_t* )lv_event_get_param(e);
         uint16_t x1 = area->x1;
@@ -150,7 +224,7 @@ public:
         if (bottom_bar_) {
             const int bar_h = 220;
             lv_obj_set_size(bottom_bar_, circular_ui::kSafeDiameter, bar_h);
-            lv_obj_align(bottom_bar_, LV_ALIGN_TOP_MID, 0, 190);
+            lv_obj_align(bottom_bar_, LV_ALIGN_TOP_MID, 0, kSubtitleBarY);
             lv_obj_set_style_bg_opa(bottom_bar_, LV_OPA_TRANSP, 0);
             lv_obj_set_style_pad_all(bottom_bar_, 0, 0);
             lv_obj_set_scrollbar_mode(bottom_bar_, LV_SCROLLBAR_MODE_AUTO);
@@ -183,13 +257,10 @@ public:
         const lv_font_t* font = theme->text_font()->font();
         const int line_height = font->line_height > 0 ? font->line_height : 30;
         // 字幕区第一行中心 y（与 SetupUI 对齐）
-        const int first_y = 190 + line_height / 2;
+        const int first_y = kSubtitleBarY + line_height / 2;
 
         auto measure = [font](const char* utf8, size_t byte_len) -> int {
-            lv_text_attributes_t attrs = {};
-            attrs.letter_space = 0;
-            return static_cast<int>(
-                lv_text_get_width(utf8, static_cast<uint32_t>(byte_len), font, &attrs));
+            return MeasureTextWidth(font, utf8, byte_len);
         };
 
         std::string wrapped = circular_ui::WrapToCircle(content, first_y, line_height, measure);
@@ -201,7 +272,7 @@ public:
             }
             // 看最新内容，并固定回 TOP_MID，避免父类多行逻辑落到 BOTTOM_MID
             lv_obj_scroll_to_y(bottom_bar_, LV_COORD_MAX, LV_ANIM_OFF);
-            lv_obj_align(bottom_bar_, LV_ALIGN_TOP_MID, 0, 190);
+            lv_obj_align(bottom_bar_, LV_ALIGN_TOP_MID, 0, kSubtitleBarY);
         }
         (void)role;
     }
