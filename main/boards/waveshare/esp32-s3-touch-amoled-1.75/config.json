@@ -8,7 +8,8 @@
             "sdkconfig_append": [
                 "CONFIG_USE_WECHAT_MESSAGE_STYLE=n",
                 "CONFIG_BOARD_TYPE_WAVESHARE_ESP32_S3_TOUCH_AMOLED_1_75=y",
-                "CONFIG_USE_DEVICE_AEC=y"
+                "CONFIG_USE_DEVICE_AEC=y",
+                "CONFIG_USE_MULTILINE_CHAT_MESSAGE=y"
             ]
         },
         {
@@ -16,7 +17,8 @@
             "sdkconfig_append": [
                 "CONFIG_USE_WECHAT_MESSAGE_STYLE=n",
                 "CONFIG_BOARD_TYPE_WAVESHARE_ESP32_S3_TOUCH_AMOLED_1_75C=y",
-                "CONFIG_USE_DEVICE_AEC=y"
+                "CONFIG_USE_DEVICE_AEC=y",
+                "CONFIG_USE_MULTILINE_CHAT_MESSAGE=y"
             ]
         }
     ]

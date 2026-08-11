@@ -8,6 +8,7 @@
 #include "led/single_led.h"
 #include "mcp_server.h"
 #include "config.h"
+#include "circular_text_wrap.h"
 #include "power_save_timer.h"
 #include "axp2101.h"
 #include "i2c_device.h"
@@ -116,9 +117,48 @@ public:
         SpiLcdDisplay::SetupUI();
 
         DisplayLockGuard lock(this);
-        lv_obj_set_style_pad_left(status_bar_, LV_HOR_RES*  0.1, 0);
-        lv_obj_set_style_pad_right(status_bar_, LV_HOR_RES*  0.1, 0);
+
+        // QSPI 对齐（保留原有）
         lv_display_add_event_cb(display_, rounder_event_cb, LV_EVENT_INVALIDATE_AREA, NULL);
+
+        // 顶部状态：圆顶安全带
+        if (top_bar_) {
+            lv_obj_set_style_pad_left(top_bar_, LV_HOR_RES * 0.18, 0);
+            lv_obj_set_style_pad_right(top_bar_, LV_HOR_RES * 0.18, 0);
+            lv_obj_set_style_pad_top(top_bar_, 18, 0);
+        }
+        if (status_bar_) {
+            lv_obj_set_style_pad_left(status_bar_, LV_HOR_RES * 0.18, 0);
+            lv_obj_set_style_pad_right(status_bar_, LV_HOR_RES * 0.18, 0);
+            lv_obj_set_style_pad_top(status_bar_, 18, 0);
+        }
+        if (status_label_) {
+            lv_obj_set_width(status_label_, circular_ui::ChordTextWidth(40));
+            lv_label_set_long_mode(status_label_, LV_LABEL_LONG_SCROLL_CIRCULAR);
+        }
+
+        // 表情置顶（偏上）
+        if (emoji_box_) {
+            lv_obj_align(emoji_box_, LV_ALIGN_TOP_MID, 0, 56);
+        }
+
+        // 字幕区：中下，限高，可滚
+        if (bottom_bar_) {
+            const int bar_h = 220;
+            lv_obj_set_size(bottom_bar_, circular_ui::kSafeDiameter, bar_h);
+            lv_obj_align(bottom_bar_, LV_ALIGN_TOP_MID, 0, 190);
+            lv_obj_set_style_bg_opa(bottom_bar_, LV_OPA_TRANSP, 0);
+            lv_obj_set_style_pad_all(bottom_bar_, 0, 0);
+            lv_obj_set_scrollbar_mode(bottom_bar_, LV_SCROLLBAR_MODE_AUTO);
+            lv_obj_set_scroll_dir(bottom_bar_, LV_DIR_VER);
+        }
+        if (chat_message_label_) {
+            // 标签宽度用最宽弦附近，实际换行由预插入 \n + 行弦宽保证
+            lv_obj_set_width(chat_message_label_, circular_ui::ChordTextWidth(300));
+            lv_label_set_long_mode(chat_message_label_, LV_LABEL_LONG_WRAP);
+            lv_obj_set_style_text_align(chat_message_label_, LV_TEXT_ALIGN_CENTER, 0);
+            lv_obj_align(chat_message_label_, LV_ALIGN_TOP_MID, 0, 0);
+        }
     }
 };
 
