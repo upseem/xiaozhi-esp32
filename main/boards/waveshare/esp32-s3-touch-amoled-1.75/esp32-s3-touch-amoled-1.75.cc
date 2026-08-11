@@ -25,6 +25,8 @@
 #include <esp_lvgl_port.h>
 #include <lvgl.h>
 
+#include <chrono>
+#include <cstdio>
 #include <cstdint>
 #include <string>
 
@@ -275,6 +277,23 @@ public:
             lv_obj_align(bottom_bar_, LV_ALIGN_TOP_MID, 0, kSubtitleBarY);
         }
         (void)role;
+    }
+
+    static bool LooksLikeClock(const char* s) {
+        if (s == nullptr) return false;
+        int a = 0, b = 0, n = 0;
+        if (std::sscanf(s, "%d:%d%n", &a, &b, &n) == 2 && s[n] == '\0') {
+            return a >= 0 && a <= 23 && b >= 0 && b <= 59;
+        }
+        return false;
+    }
+
+    virtual void SetStatus(const char* status) override {
+        if (LooksLikeClock(status)) {
+            last_status_update_time_ = std::chrono::system_clock::now();
+            return;
+        }
+        LvglDisplay::SetStatus(status);
     }
 };
 
