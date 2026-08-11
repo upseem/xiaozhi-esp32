@@ -13,3 +13,20 @@ In the smaller form, the 1.75-inch capacitive HD AMOLED screen, highly integrate
 | <img style="width: 150px; height: auto; display: block; margin: 0 auto;" src= "https://www.waveshare.com/media/catalog/product/cache/1/image/560x560/9df78eab33525d08d6e5fb8d27136e95/e/s/esp32-s3-touch-amoled-1.75-b-3.jpg"> |
 | <img style="width: 150px; height: auto; display: block; margin: 0 auto;" src= "https://www.waveshare.com/media/catalog/product/cache/1/image/560x560/9df78eab33525d08d6e5fb8d27136e95/e/s/esp32-s3-touch-amoled-1.75-b-1.jpg"> |
 
+## Circular UI / 圆屏 UI
+
+Applies to both **1.75** and **1.75C** builds.
+
+| | |
+|---|---|
+| Canvas | 466 × 466 |
+| Safe circle | diameter **450** (content stays inside; outside is black) |
+| Layout | Emoji on top; multiline subtitle mid-bottom with **chord wrapping** |
+| Idle | Status only（待机 / 听你说 / 说话中等）— **no clock** |
+
+## Acceptance / 实机验收
+
+- [ ] Standby: emoji + status visible, no `HH:MM` clock
+- [ ] Long Chinese subtitle wraps by chord and stays inside the Ø450 circle
+- [ ] Long reply scrolls within the subtitle area (emoji stays put)
+- [ ] No half-cut glyphs at the circular edge
