@@ -1,5 +1,6 @@
 #include "wifi_board.h"
 #include "display/lcd_display.h"
+#include "display/lvgl_display/lvgl_theme.h"
 #include "esp_lcd_co5300.h"
 
 #include "codecs/box_audio_codec.h"
@@ -23,6 +24,9 @@
 #include <esp_lcd_touch_cst9217.h>
 #include <esp_lvgl_port.h>
 #include <lvgl.h>
+#include "src/misc/lv_text_private.h"
+
+#include <string>
 
 #define TAG "WaveshareEsp32s3TouchAMOLED1inch75"
 
@@ -159,6 +163,47 @@ public:
             lv_obj_set_style_text_align(chat_message_label_, LV_TEXT_ALIGN_CENTER, 0);
             lv_obj_align(chat_message_label_, LV_ALIGN_TOP_MID, 0, 0);
         }
+    }
+
+    virtual void SetChatMessage(const char* role, const char* content) override {
+        DisplayLockGuard lock(this);
+        if (chat_message_label_ == nullptr) {
+            return;
+        }
+
+        if (content == nullptr || content[0] == '\0') {
+            lv_label_set_text(chat_message_label_, "");
+            if (bottom_bar_) {
+                lv_obj_add_flag(bottom_bar_, LV_OBJ_FLAG_HIDDEN);
+            }
+            return;
+        }
+
+        auto* theme = static_cast<LvglTheme*>(current_theme_);
+        const lv_font_t* font = theme->text_font()->font();
+        const int line_height = font->line_height > 0 ? font->line_height : 30;
+        // 字幕区第一行中心 y（与 SetupUI 对齐）
+        const int first_y = 190 + line_height / 2;
+
+        auto measure = [font](const char* utf8, size_t byte_len) -> int {
+            lv_text_attributes_t attrs = {};
+            attrs.letter_space = 0;
+            return static_cast<int>(
+                lv_text_get_width(utf8, static_cast<uint32_t>(byte_len), font, &attrs));
+        };
+
+        std::string wrapped = circular_ui::WrapToCircle(content, first_y, line_height, measure);
+        lv_anim_delete(chat_message_label_, nullptr);
+        lv_label_set_text(chat_message_label_, wrapped.c_str());
+        if (bottom_bar_ != nullptr) {
+            if (!hide_subtitle_) {
+                lv_obj_remove_flag(bottom_bar_, LV_OBJ_FLAG_HIDDEN);
+            }
+            // 看最新内容，并固定回 TOP_MID，避免父类多行逻辑落到 BOTTOM_MID
+            lv_obj_scroll_to_y(bottom_bar_, LV_COORD_MAX, LV_ANIM_OFF);
+            lv_obj_align(bottom_bar_, LV_ALIGN_TOP_MID, 0, 190);
+        }
+        (void)role;
     }
 };
 
